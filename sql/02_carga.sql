@@ -7,6 +7,9 @@
 -- envía al servidor. El orden importa: primero las tablas "padre".
 -- =============================================================================
 
+-- Los CSV están en UTF-8: se lo decimos a psql para que respete las tildes
+SET client_encoding = 'UTF8';
+
 \copy agencias FROM 'data/agencias.csv' WITH (FORMAT csv, HEADER true)
 \copy clientes FROM 'data/clientes.csv' WITH (FORMAT csv, HEADER true)
 \copy creditos FROM 'data/creditos.csv' WITH (FORMAT csv, HEADER true)
