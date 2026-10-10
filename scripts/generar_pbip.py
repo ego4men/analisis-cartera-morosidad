@@ -262,10 +262,15 @@ p3 = pagina("Cobranza", "Gestión de cobranza", [
            orden=("_Medidas.Monto Vencido 1-60", 2)),
 ])
 
+# Tema base: Power BI Desktop exige uno (se copia desde la instalación local de Power BI)
+TEMA = "CY24SU10"
 reporte = {
-    "config": json.dumps({"version": "5.43", "activeSectionIndex": 0, "defaultDrillFilterOtherVisuals": True,
+    "config": json.dumps({"version": "5.65", "themeCollection": {"baseTheme": {"name": TEMA, "version": "5.59", "type": 2}},
+                          "activeSectionIndex": 0, "defaultDrillFilterOtherVisuals": True,
                           "linguisticSchemaSyncVersion": 0, "objects": {}}),
     "layoutOptimization": 0,
+    "resourcePackages": [{"resourcePackage": {"name": "SharedResources", "type": 2, "disabled": False,
+                                              "items": [{"type": 202, "path": f"BaseThemes/{TEMA}.json", "name": TEMA}]}}],
     "sections": [p1, p2, p3],
     "filters": "[]",
 }
@@ -290,5 +295,12 @@ escribir(modelo_dir / "model.bim", modelo)
 escribir(reporte_dir / "definition.pbir", {"version": "1.0", "datasetReference": {
     "byPath": {"path": f"../{NOMBRE}.SemanticModel"}, "byConnection": None}})
 escribir(reporte_dir / "report.json", reporte)
+tema_dir = reporte_dir / "StaticResources" / "SharedResources" / "BaseThemes"
+tema_dir.mkdir(parents=True, exist_ok=True)
+tema_origen = Path(r"C:\Program Files\Microsoft Power BI Desktop\bin\WebView2Resources\minerva\SHAREDRESOURCES\BASETHEMES") / f"{TEMA}.JSON"
+if tema_origen.exists():
+    (tema_dir / f"{TEMA}.json").write_bytes(tema_origen.read_bytes())
+elif not (tema_dir / f"{TEMA}.json").exists():
+    raise FileNotFoundError(f"No se encontró el tema base {TEMA}: instala Power BI Desktop o copia el archivo a {tema_dir}")
 (RAIZ / ".gitignore").write_text("**/.pbi/localSettings.json\n**/.pbi/cache.abf\n", encoding="utf-8")
 print(f"Proyecto generado en {RAIZ / (NOMBRE + '.pbip')}")
