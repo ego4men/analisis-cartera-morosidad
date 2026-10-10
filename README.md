@@ -49,7 +49,7 @@ agencias (1) ──< (N) clientes (1) ──< (N) creditos (1) ──< (N) cuota
 | Foto al corte y **cierres mensuales** (33 meses, 76 mil filas) | [`sql/03_vistas.sql`](sql/03_vistas.sql) | CTE, `FILTER`, `CASE`, `generate_series`, vista materializada |
 | Indicadores, roll rates, cosechas, ranking, lista de cobranza | [`sql/04_analisis.sql`](sql/04_analisis.sql) | `LAG`, `RANK`, `NTILE`, `ROW_NUMBER`, `SUM() OVER ()`, `AGE` |
 | Gráficos y exportación para BI | [`scripts/graficos_y_exportacion.py`](scripts/graficos_y_exportacion.py) | pandas, matplotlib |
-| Dashboard | [`powerbi/GUIA_POWERBI.md`](powerbi/GUIA_POWERBI.md) | Power Query, modelo estrella, DAX (`CALCULATE`, `DATEADD`, `VAR`) |
+| Dashboard de Power BI (3 páginas: resumen, agencias y cobranza) | [`powerbi/CarteraMorosidad.pbip`](powerbi/) · [guía](powerbi/GUIA_POWERBI.md) | Power Query desde GitHub, modelo estrella, DAX (`CALCULATE`, `DATEADD`, `VAR`) |
 
 **Definiciones clave**
 - **Días de atraso:** fecha de corte − vencimiento de la cuota impaga más antigua.
@@ -104,6 +104,17 @@ sostenida de deterioro** en la originación: las diferencias entre trimestres so
 4. **Ajustar la política del canal digital**, que tiene 1,2 puntos más de mora que el canal de agencia.
 5. **Leer la mora junto con el saldo.** Desde jul-2026 la cartera se reduce porque ya no hay nuevos desembolsos, y el ratio
    sube en parte por **efecto denominador**: la misma mora pesa más sobre un saldo menor.
+
+### Dashboard de Power BI
+
+El dashboard está en formato **PBIP** (Power BI Project), archivos de texto versionables generados con
+[`scripts/generar_pbip.py`](scripts/generar_pbip.py). Para abrirlo:
+
+1. Descarga o clona el repositorio y abre `powerbi/CarteraMorosidad.pbip` con Power BI Desktop.
+2. Pulsa **Inicio → Actualizar**: Power Query descarga los CSV directamente desde este repositorio.
+
+Páginas: **Resumen ejecutivo** (KPIs, evolución de la mora y del saldo, mora por producto, segmentadores),
+**Agencias** (ranking y matriz agencia × tramo) y **Gestión de cobranza** (lista priorizada de créditos con 1 a 60 días).
 
 ## 6. Cómo reproducirlo
 
