@@ -35,9 +35,9 @@ cuotas_impagas AS (
 resumen AS (
     SELECT credito_id,
            SUM(amortizacion)                                              AS saldo_capital,
-           MIN(fecha_vencimiento) FILTER (WHERE fecha_vencimiento <= fecha_corte) AS primera_vencida,
-           COUNT(*)               FILTER (WHERE fecha_vencimiento <= fecha_corte) AS cuotas_vencidas,
-           COALESCE(SUM(monto_cuota) FILTER (WHERE fecha_vencimiento <= fecha_corte), 0) AS monto_vencido
+           MIN(fecha_vencimiento) FILTER (WHERE fecha_vencimiento < fecha_corte) AS primera_vencida,
+           COUNT(*)               FILTER (WHERE fecha_vencimiento < fecha_corte) AS cuotas_vencidas,
+           COALESCE(SUM(monto_cuota) FILTER (WHERE fecha_vencimiento < fecha_corte), 0) AS monto_vencido
     FROM cuotas_impagas
     GROUP BY credito_id
 )
@@ -89,7 +89,7 @@ impagas_mes AS (
     SELECT cm.fecha_cierre,
            cm.credito_id,
            SUM(cu.amortizacion)                                                AS saldo_capital,
-           MIN(cu.fecha_vencimiento) FILTER (WHERE cu.fecha_vencimiento <= cm.fecha_cierre) AS primera_vencida
+           MIN(cu.fecha_vencimiento) FILTER (WHERE cu.fecha_vencimiento < cm.fecha_cierre) AS primera_vencida
     FROM creditos_mes cm
     JOIN cuotas cu
       ON cu.credito_id = cm.credito_id

@@ -12,12 +12,13 @@ Idea de la simulación:
     o, si ya estaba atrasado, ponerse al día. La probabilidad de atrasarse
     depende del perfil de riesgo del cliente (ingreso, edad, carga financiera,
     producto y canal). Así los datos tienen patrones reales que el análisis
-    puede descubrir. Con 6 cuotas impagas el crédito se CASTIGA (se da por
+    puede descubrir. Con unos 180 días de atraso el crédito se CASTIGA (se da por
     perdido y sale de la cartera), como hacen las entidades financieras.
 
 Uso:
     python scripts/generar_datos.py
 """
+import itertools
 from pathlib import Path
 
 import numpy as np
@@ -70,7 +71,7 @@ riesgo_personal = rng.normal(0, 0.8, N_CLIENTES)
 PRODUCTOS = {
     #  nombre:        (prob, monto_mediano, plazos posibles,      TEA mín, TEA máx, ajuste riesgo)
     "Consumo":        (0.60, 8000,   [6, 12, 18, 24, 36],      0.25, 0.60, 0.30),
-    "Microempresa":   (0.30, 15000,  [6, 12, 18, 24],          0.30, 0.55, 0.25),
+    "Microempresa":   (0.30, 15000,  [6, 12, 18, 24],          0.30, 0.55, 0.60),
     "Vehicular":      (0.10, 60000,  [24, 36, 48, 60],         0.12, 0.18, -0.90),
 }
 
@@ -115,7 +116,7 @@ cli_idx = creditos.cliente_id - 1
 edad = edades[cli_idx]
 carga = creditos.cuota_mensual / clientes.ingreso_mensual.values[cli_idx]  # cuota / ingreso
 puntaje = (
-    -5.7
+    -5.2
     + creditos.producto.map({k: v[5] for k, v in PRODUCTOS.items()})
     + np.where(creditos.canal == "Digital", 0.35, 0.0)
     + np.where(edad < 25, 0.45, 0.0)
@@ -134,9 +135,10 @@ prob_atraso = sigmoide(puntaje).to_numpy()
 PROB_REGULARIZA = {2: 0.50, 3: 0.35, 4: 0.18, 5: 0.10, 6: 0.05}
 PROB_EMPEORA = {2: 0.30, 3: 0.40, 4: 0.55, 5: 0.65, 6: 0.75}
 
-# Con 6 cuotas impagas (unos 180 días de atraso) el banco CASTIGA el crédito:
-# lo da por perdido y lo saca de la cartera (aunque siga gestionando su cobro).
-CUOTAS_PARA_CASTIGO = 6
+# Cuando la cuota impaga más antigua supera ~150 días (y al mes siguiente ~180),
+# el banco CASTIGA el crédito: lo da por perdido y lo saca de la cartera
+# (aunque siga gestionando su cobro).
+DIAS_PARA_CASTIGO = 150
 
 filas_cuotas = []
 fechas_castigo = {}
@@ -145,31 +147,36 @@ for k, cr in enumerate(creditos.itertuples(index=False)):
     saldo = cr.monto_desembolsado
     pendientes = []                     # cuotas vencidas aún no pagadas
     cuotas_credito = []
-    for n in range(1, cr.plazo_meses + 1):
+    for n in itertools.count(1):
         venc = cr.fecha_desembolso + pd.DateOffset(months=n)
-        interes = round(saldo * i, 2)
-        amortizacion = round(cr.cuota_mensual - interes, 2) if n < cr.plazo_meses else round(saldo, 2)
-        saldo = round(saldo - amortizacion, 2)
-        cuota = {
-            "credito_id": cr.credito_id, "numero_cuota": n, "fecha_vencimiento": venc,
-            "monto_cuota": round(amortizacion + interes, 2), "amortizacion": amortizacion,
-            "interes": interes, "fecha_pago": pd.NaT,
-        }
-        cuotas_credito.append(cuota)
+        if n <= cr.plazo_meses:
+            interes = round(saldo * i, 2)
+            amortizacion = round(cr.cuota_mensual - interes, 2) if n < cr.plazo_meses else round(saldo, 2)
+            saldo = round(saldo - amortizacion, 2)
+            cuota = {
+                "credito_id": cr.credito_id, "numero_cuota": n, "fecha_vencimiento": venc,
+                "monto_cuota": round(amortizacion + interes, 2), "amortizacion": amortizacion,
+                "interes": interes, "fecha_pago": pd.NaT,
+            }
+            cuotas_credito.append(cuota)
+        elif not pendientes or venc > FECHA_CORTE:
+            break                        # terminó el plazo y no debe nada (o ya es el corte)
         if venc > FECHA_CORTE or cr.credito_id in fechas_castigo:
             continue                     # cuota futura o crédito castigado: no hay pagos
 
-        pendientes.append(cuota)
+        if n <= cr.plazo_meses:
+            pendientes.append(cuota)
         npend = len(pendientes)
+        al_dia = npend == 1 and n <= cr.plazo_meses
         p = prob_atraso[k]
-        if npend == 1:                   # estaba al día
+        if al_dia:                       # solo debe la cuota de este mes
             paga_todo, paga_una = 1 - p, 0.0
         else:                            # ya estaba atrasado
-            reg = PROB_REGULARIZA.get(npend, 0.02) * (1 - min(p * 3, 0.8))
-            emp = PROB_EMPEORA.get(npend, 0.90)
+            reg = PROB_REGULARIZA.get(max(npend, 2), 0.02) * (1 - min(p * 3, 0.8))
+            emp = PROB_EMPEORA.get(max(npend, 2), 0.90)
             paga_todo, paga_una = reg, max(0.0, 1 - reg - emp)
         u = rng.random()
-        if npend == 1 and u < paga_todo:
+        if al_dia and u < paga_todo:
             # La mayoría paga antes o el mismo día; algunos con unos días de retraso
             desfase = int(rng.integers(-10, 1)) if rng.random() < 0.85 else int(rng.integers(1, 26))
         else:
@@ -187,7 +194,7 @@ for k, cr in enumerate(creditos.itertuples(index=False)):
         for c in a_pagar:
             c["fecha_pago"] = fecha_pago
         pendientes = pendientes[len(a_pagar):]   # siempre se pagan las más antiguas
-        if len(pendientes) >= CUOTAS_PARA_CASTIGO:
+        if pendientes and (venc - pendientes[0]["fecha_vencimiento"]).days >= DIAS_PARA_CASTIGO:
             fechas_castigo[cr.credito_id] = venc
     filas_cuotas.extend(cuotas_credito)
 
