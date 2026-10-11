@@ -113,8 +113,20 @@ El dashboard está en formato **PBIP** (Power BI Project), archivos de texto ver
 1. Descarga o clona el repositorio y abre `powerbi/CarteraMorosidad.pbip` con Power BI Desktop.
 2. Pulsa **Inicio → Actualizar**: Power Query descarga los CSV directamente desde este repositorio.
 
-Páginas: **Resumen ejecutivo** (KPIs, evolución de la mora y del saldo, mora por producto, segmentadores),
-**Agencias** (ranking y matriz agencia × tramo) y **Gestión de cobranza** (lista priorizada de créditos con 1 a 60 días).
+Diseño: tema propio ([`powerbi/tema_cartera_riesgo.json`](powerbi/tema_cartera_riesgo.json)) con lienzo oscuro, tarjetas con sombra,
+navegación entre páginas, KPIs con variación mensual y colores semánticos (verde sano · ámbar alerta · rojo crítico).
+
+**Resumen ejecutivo**: KPIs, evolución de la mora y del saldo, mora por producto y segmentadores.
+
+![Dashboard: resumen ejecutivo](img/06_dashboard_resumen.png)
+
+**Agencias**: ranking de mora, composición del saldo por tramo de atraso y matriz agencia × tramo.
+
+![Dashboard: agencias](img/06_dashboard_agencias.png)
+
+**Gestión de cobranza**: lista priorizada de créditos con 1 a 60 días de atraso.
+
+![Dashboard: gestión de cobranza](img/06_dashboard_cobranza.png)
 
 ## 6. Cómo reproducirlo
 
