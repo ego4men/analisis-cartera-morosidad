@@ -225,27 +225,51 @@ def pagina(nombre, titulo, visuales):
             "config": "{}", "filters": "[]", "visualContainers": visuales}
 
 
+def L(valor):
+    return {"expr": {"Literal": {"Value": valor}}}
+
+
+VERDE = "'#0F6B57'"
+SEGMENTADOR = {"data": [{"properties": {"mode": L("'Dropdown'")}}], "header": [{"properties": {"show": L("false")}}]}
+TARJETA_MONEDA = {"labels": [{"properties": {"labelDisplayUnits": L("1D"), "labelPrecision": L("0L")}}]}
+COLOR = {"dataPoint": [{"properties": {"fill": {"solid": {"color": L(VERDE)}}}}]}
+SIN_TITULOS_EJES = {"categoryAxis": [{"properties": {"showAxisTitle": L("false")}}],
+                    "valueAxis": [{"properties": {"showAxisTitle": L("false")}}]}
+EJE_FECHA = {"categoryAxis": [{"properties": {"axisType": L("'Scalar'"), "showAxisTitle": L("false")}}],
+             "valueAxis": [{"properties": {"showAxisTitle": L("false")}}]}
+ETIQUETAS = {"labels": [{"properties": {"show": L("true")}}]}
+
+
+def combinar(*partes):
+    salida = {}
+    for p in partes:
+        salida.update(p)
+    return salida
+
+
 p1 = pagina("Resumen", "Resumen ejecutivo", [
     texto(24, 12, 900, 48, "Cartera y morosidad · corte 30/09/2026", 20),
-    visual("slicer", 24, 70, 300, 60, {"Values": ["fEstado.producto"]}, "Producto"),
-    visual("slicer", 336, 70, 300, 60, {"Values": ["fEstado.canal"]}, "Canal"),
-    visual("slicer", 648, 70, 300, 60, {"Values": ["dAgencia.region"]}, "Región"),
-    visual("card", 24, 145, 296, 110, {"Values": ["_Medidas.Saldo Vigente"]}),
-    visual("card", 336, 145, 296, 110, {"Values": ["_Medidas.% Mora 30"]}),
-    visual("card", 648, 145, 296, 110, {"Values": ["_Medidas.% Mora 90"]}),
-    visual("card", 960, 145, 296, 110, {"Values": ["_Medidas.Saldo Castigado"]}),
-    visual("lineChart", 24, 270, 616, 430, {"Category": ["dCalendario.Mes"], "Y": ["_Medidas.% Mora 30 Mes"]},
-           "Ratio de mora > 30 días por mes"),
+    visual("slicer", 24, 64, 296, 72, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR),
+    visual("slicer", 336, 64, 296, 72, {"Values": ["fEstado.canal"]}, "Canal", extra_objects=SEGMENTADOR),
+    visual("slicer", 648, 64, 296, 72, {"Values": ["dAgencia.region"]}, "Región", extra_objects=SEGMENTADOR),
+    visual("card", 24, 150, 296, 105, {"Values": ["_Medidas.Saldo Vigente"]}, extra_objects=TARJETA_MONEDA),
+    visual("card", 336, 150, 296, 105, {"Values": ["_Medidas.% Mora 30"]}),
+    visual("card", 648, 150, 296, 105, {"Values": ["_Medidas.% Mora 90"]}),
+    visual("card", 960, 150, 296, 105, {"Values": ["_Medidas.Saldo Castigado"]}, extra_objects=TARJETA_MONEDA),
+    visual("lineChart", 24, 270, 616, 430, {"Category": ["fCierre.fecha_cierre"], "Y": ["_Medidas.% Mora 30 Mes"]},
+           "Ratio de mora > 30 días por mes", extra_objects=combinar(EJE_FECHA, COLOR)),
     visual("clusteredBarChart", 656, 270, 600, 200, {"Category": ["fEstado.producto"], "Y": ["_Medidas.% Mora 30"]},
-           "Mora > 30 días por producto", orden=("_Medidas.% Mora 30", 2)),
-    visual("clusteredColumnChart", 656, 485, 600, 215, {"Category": ["dCalendario.Mes"], "Y": ["_Medidas.Saldo Mes"]},
-           "Saldo de capital por mes"),
+           "Mora > 30 días por producto", orden=("_Medidas.% Mora 30", 2),
+           extra_objects=combinar(SIN_TITULOS_EJES, COLOR, ETIQUETAS)),
+    visual("clusteredColumnChart", 656, 485, 600, 215, {"Category": ["fCierre.fecha_cierre"], "Y": ["_Medidas.Saldo Mes"]},
+           "Saldo de capital por mes", extra_objects=combinar(EJE_FECHA, COLOR)),
 ])
 
 p2 = pagina("Agencias", "Agencias", [
     texto(24, 12, 900, 48, "Mora por agencia y tramo de atraso", 20),
     visual("clusteredBarChart", 24, 70, 560, 630, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.% Mora 30"]},
-           "Mora > 30 días por agencia", orden=("_Medidas.% Mora 30", 2)),
+           "Mora > 30 días por agencia", orden=("_Medidas.% Mora 30", 2),
+           extra_objects=combinar(SIN_TITULOS_EJES, COLOR, ETIQUETAS)),
     visual("pivotTable", 600, 70, 656, 630,
            {"Rows": ["dAgencia.nombre_agencia"], "Columns": ["fEstado.tramo_mora"], "Values": ["_Medidas.Saldo Vigente"]},
            "Saldo vigente por agencia y tramo de mora"),
@@ -253,9 +277,9 @@ p2 = pagina("Agencias", "Agencias", [
 
 p3 = pagina("Cobranza", "Gestión de cobranza", [
     texto(24, 12, 1100, 48, "Lista de gestión: créditos con 1 a 60 días de atraso", 20),
-    visual("slicer", 24, 70, 400, 60, {"Values": ["dAgencia.nombre_agencia"]}, "Agencia"),
-    visual("card", 440, 70, 300, 60, {"Values": ["_Medidas.Monto Vencido 1-60"]}),
-    visual("tableEx", 24, 145, 1232, 555,
+    visual("slicer", 24, 64, 400, 72, {"Values": ["dAgencia.nombre_agencia"]}, "Agencia", extra_objects=SEGMENTADOR),
+    visual("card", 440, 64, 320, 72, {"Values": ["_Medidas.Monto Vencido 1-60"]}, extra_objects=TARJETA_MONEDA),
+    visual("tableEx", 24, 150, 1232, 550,
            {"Values": ["fEstado.credito_id", "fEstado.cliente_id", "dAgencia.nombre_agencia", "fEstado.producto",
                        "fEstado.dias_atraso", "fEstado.cuotas_vencidas", "_Medidas.Monto Vencido 1-60"]},
            "Priorizar por monto vencido (solo aparecen créditos con 1 a 60 días)",
