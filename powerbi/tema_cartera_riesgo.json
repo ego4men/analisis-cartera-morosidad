@@ -57,7 +57,7 @@
     },
     "tableEx": {
       "*": {
-        "grid": [{ "gridHorizontal": true, "gridHorizontalColor": { "solid": { "color": "#22384A" } }, "gridVertical": false, "rowPadding": 4 }],
+        "grid": [{ "gridHorizontal": true, "gridHorizontalColor": { "solid": { "color": "#22384A" } }, "gridVertical": false, "rowPadding": 2 }],
         "columnHeaders": [{ "fontColor": { "solid": { "color": "#9FB0BF" } }, "backColor": { "solid": { "color": "#13212E" } } }],
         "values": [{ "fontColorPrimary": { "solid": { "color": "#E6EDF3" } }, "backColorPrimary": { "solid": { "color": "#13212E" } },
                      "fontColorSecondary": { "solid": { "color": "#E6EDF3" } }, "backColorSecondary": { "solid": { "color": "#172A3A" } } }],
@@ -66,7 +66,7 @@
     },
     "pivotTable": {
       "*": {
-        "grid": [{ "gridHorizontal": true, "gridHorizontalColor": { "solid": { "color": "#22384A" } }, "gridVertical": false, "rowPadding": 4 }],
+        "grid": [{ "gridHorizontal": true, "gridHorizontalColor": { "solid": { "color": "#22384A" } }, "gridVertical": false, "rowPadding": 2 }],
         "columnHeaders": [{ "fontColor": { "solid": { "color": "#9FB0BF" } }, "backColor": { "solid": { "color": "#13212E" } } }],
         "rowHeaders": [{ "fontColor": { "solid": { "color": "#E6EDF3" } }, "backColor": { "solid": { "color": "#13212E" } } }],
         "values": [{ "fontColorPrimary": { "solid": { "color": "#E6EDF3" } }, "backColorPrimary": { "solid": { "color": "#13212E" } },

@@ -258,6 +258,7 @@ VERDE, AMBAR, NARANJA, ROJO, AZUL = "#2BD9A4", "#F2B84B", "#F0874B", "#E5484D", 
 FONDO_CABECERA = "#102231"
 
 SEGMENTADOR = {"data": [{"properties": {"mode": L("'Dropdown'")}}], "header": [{"properties": {"show": L("false")}}]}
+COMPACTO = {"padding": [{"properties": {"top": L("6D"), "bottom": L("6D"), "left": L("12D"), "right": L("12D")}}]}
 
 
 def tarjeta(valor_color="#FFFFFF", moneda=False):
@@ -298,16 +299,17 @@ def cabecera(titulo, subtitulo):
 
 p1 = pagina("Resumen", "Resumen ejecutivo", cabecera(
     "Cartera y morosidad", "Resumen ejecutivo · corte 30/09/2026 · datos sintéticos") + [
-    visual("slicer", 24, 92, 296, 64, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR),
-    visual("slicer", 336, 92, 296, 64, {"Values": ["fEstado.canal"]}, "Canal", extra_objects=SEGMENTADOR),
-    visual("slicer", 648, 92, 296, 64, {"Values": ["dAgencia.region"]}, "Región", extra_objects=SEGMENTADOR),
-    visual("card", 960, 92, 296, 64, {"Values": ["_Medidas.Créditos Vigentes"]}, extra_objects=tarjeta()),
-    visual("card", 24, 172, 296, 96, {"Values": ["_Medidas.Saldo Vigente"]}, extra_objects=tarjeta(moneda=True)),
-    visual("card", 336, 172, 296, 96, {"Values": ["_Medidas.% Mora 30"]}, extra_objects=tarjeta(AMBAR)),
-    visual("card", 648, 172, 296, 96, {"Values": ["_Medidas.Var. Mora 30 vs Mes Anterior"]}, extra_objects=tarjeta(NARANJA)),
-    visual("card", 960, 172, 296, 96, {"Values": ["_Medidas.Saldo Castigado"]}, extra_objects=tarjeta(ROJO, moneda=True)),
+    visual("slicer", 24, 88, 296, 80, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR, contenedor=COMPACTO),
+    visual("slicer", 336, 88, 296, 80, {"Values": ["fEstado.canal"]}, "Canal", extra_objects=SEGMENTADOR, contenedor=COMPACTO),
+    visual("slicer", 648, 88, 296, 80, {"Values": ["dAgencia.region"]}, "Región", extra_objects=SEGMENTADOR, contenedor=COMPACTO),
+    visual("card", 960, 88, 296, 80, {"Values": ["_Medidas.Créditos Vigentes"]}, extra_objects=tarjeta(), contenedor=COMPACTO),
+    visual("card", 24, 180, 296, 92, {"Values": ["_Medidas.Saldo Vigente"]}, extra_objects=tarjeta(moneda=True)),
+    visual("card", 336, 180, 296, 92, {"Values": ["_Medidas.% Mora 30"]}, extra_objects=tarjeta(AMBAR)),
+    visual("card", 648, 180, 296, 92, {"Values": ["_Medidas.Var. Mora 30 vs Mes Anterior"]}, extra_objects=tarjeta(NARANJA)),
+    visual("card", 960, 180, 296, 92, {"Values": ["_Medidas.Saldo Castigado"]}, extra_objects=tarjeta(ROJO, moneda=True)),
     visual("lineChart", 24, 284, 616, 420, {"Category": ["fCierre.fecha_cierre"], "Y": ["_Medidas.% Mora 30 Mes"]},
-           "Ratio de mora > 30 días por mes", extra_objects=combinar(EJE_FECHA, relleno(AMBAR), MARCADORES)),
+           "Ratio de mora > 30 días por mes", extra_objects=combinar(EJE_FECHA, MARCADORES, {"dataPoint": [
+               {"properties": {"fill": color(AMBAR)}, "selector": {"metadata": "_Medidas.% Mora 30 Mes"}}]})),
     visual("clusteredBarChart", 656, 284, 600, 196, {"Category": ["fEstado.producto"], "Y": ["_Medidas.% Mora 30"]},
            "Mora > 30 días por producto", orden=("_Medidas.% Mora 30", 2),
            extra_objects=combinar(SIN_TITULOS, relleno(AMBAR), ETIQUETAS)),
@@ -317,31 +319,31 @@ p1 = pagina("Resumen", "Resumen ejecutivo", cabecera(
 
 p2 = pagina("Agencias", "Agencias", cabecera(
     "Riesgo por agencia", "Mora y composición del saldo por tramo de atraso · corte 30/09/2026") + [
-    visual("clusteredBarChart", 24, 92, 520, 612, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.% Mora 30"]},
+    visual("clusteredBarChart", 24, 88, 420, 616, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.% Mora 30"]},
            "Mora > 30 días por agencia", orden=("_Medidas.% Mora 30", 2),
            extra_objects=combinar(SIN_TITULOS, relleno(AMBAR), ETIQUETAS)),
-    visual("hundredPercentStackedBarChart", 560, 92, 696, 300,
+    visual("hundredPercentStackedBarChart", 460, 88, 796, 316,
            {"Category": ["dAgencia.nombre_agencia"], "Series": ["fEstado.tramo_mora"], "Y": ["_Medidas.Saldo Vigente"]},
            "Composición del saldo vigente por tramo de mora", extra_objects=SIN_TITULOS),
-    visual("pivotTable", 560, 408, 696, 296,
+    visual("pivotTable", 460, 416, 796, 288,
            {"Rows": ["dAgencia.nombre_agencia"], "Columns": ["fEstado.tramo_mora"], "Values": ["_Medidas.Saldo Vigente"]},
            "Saldo vigente por agencia y tramo (S/)"),
 ])
 
 p3 = pagina("Cobranza", "Gestión de cobranza", cabecera(
     "Gestión de cobranza", "Créditos con 1 a 60 días de atraso, priorizados por monto vencido") + [
-    visual("slicer", 24, 92, 296, 64, {"Values": ["dAgencia.nombre_agencia"]}, "Agencia", extra_objects=SEGMENTADOR),
-    visual("slicer", 336, 92, 296, 64, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR),
-    visual("card", 648, 92, 296, 64, {"Values": ["_Medidas.Monto Vencido 1-60"]}, extra_objects=tarjeta(AMBAR, moneda=True)),
-    visual("card", 960, 92, 296, 64, {"Values": ["_Medidas.Créditos 1-60"]}, extra_objects=tarjeta()),
-    visual("tableEx", 24, 172, 820, 532,
+    visual("slicer", 24, 88, 296, 80, {"Values": ["dAgencia.nombre_agencia"]}, "Agencia", extra_objects=SEGMENTADOR, contenedor=COMPACTO),
+    visual("slicer", 336, 88, 296, 80, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR, contenedor=COMPACTO),
+    visual("card", 648, 88, 296, 80, {"Values": ["_Medidas.Monto Vencido 1-60"]}, extra_objects=tarjeta(AMBAR, moneda=True), contenedor=COMPACTO),
+    visual("card", 960, 88, 296, 80, {"Values": ["_Medidas.Créditos 1-60"]}, extra_objects=tarjeta(), contenedor=COMPACTO),
+    visual("tableEx", 24, 180, 820, 524,
            {"Values": ["fEstado.credito_id", "dAgencia.nombre_agencia", "fEstado.producto",
                        "fEstado.dias_atraso", "fEstado.cuotas_vencidas", "_Medidas.Monto Vencido 1-60"]},
            "Lista de gestión priorizada", orden=("_Medidas.Monto Vencido 1-60", 2)),
-    visual("clusteredBarChart", 860, 172, 396, 260, {"Category": ["fEstado.producto"], "Y": ["_Medidas.Monto Vencido 1-60"]},
+    visual("clusteredBarChart", 860, 180, 396, 196, {"Category": ["fEstado.producto"], "Y": ["_Medidas.Monto Vencido 1-60"]},
            "Monto vencido 1-60 por producto", orden=("_Medidas.Monto Vencido 1-60", 2),
            extra_objects=combinar(SIN_TITULOS, relleno(AZUL), ETIQUETAS)),
-    visual("clusteredBarChart", 860, 448, 396, 256, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.Créditos 1-60"]},
+    visual("clusteredBarChart", 860, 388, 396, 316, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.Créditos 1-60"]},
            "Créditos por gestionar por agencia", orden=("_Medidas.Créditos 1-60", 2),
            extra_objects=combinar(SIN_TITULOS, relleno(VERDE), ETIQUETAS)),
 ])
