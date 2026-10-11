@@ -136,6 +136,15 @@ medidas = tabla(
                "VAR anterior = CALCULATE ( [% Mora 30 Mes], DATEADD ( dCalendario[Fecha], -1, MONTH ) )\n"
                "RETURN IF ( NOT ISBLANK ( anterior ), actual - anterior )",
                "+0.00%;-0.00%;0.00%", "Evolución"),
+        medida("Var. Mora 30 vs Mes Anterior",
+               "VAR ultimo = MAX ( fCierre[fecha_cierre] )\n"
+               "VAR previo = EOMONTH ( ultimo, -1 )\n"
+               "RETURN CALCULATE ( [% Mora 30 Mes], fCierre[fecha_cierre] = ultimo )\n"
+               "     - CALCULATE ( [% Mora 30 Mes], fCierre[fecha_cierre] = previo )",
+               "+0.00%;-0.00%;0.00%", "Evolución"),
+        medida("Créditos 1-60",
+               "CALCULATE ( COUNTROWS ( fEstado ), fEstado[dias_atraso] >= 1, fEstado[dias_atraso] <= 60 )",
+               ENTERO, "Cobranza"),
     ],
 )
 
@@ -181,7 +190,7 @@ def literal(texto):
     return {"expr": {"Literal": {"Value": f"'{texto}'"}}}
 
 
-def visual(tipo, x, y, w, h, roles, titulo=None, orden=None, z=0, extra_objects=None):
+def visual(tipo, x, y, w, h, roles, titulo=None, orden=None, z=0, extra_objects=None, contenedor=None):
     refs = [r for lista in roles.values() for r in lista]
     tablas = sorted({r.split(".")[0] for r in refs})
     query = {"Version": 2,
@@ -191,14 +200,12 @@ def visual(tipo, x, y, w, h, roles, titulo=None, orden=None, z=0, extra_objects=
         ref, direccion = orden
         query["OrderBy"] = [{"Direction": direccion, "Expression": {k: v for k, v in campo(ref).items()
                                                                     if k in ("Measure", "Column")}}]
-    single = {
-        "visualType": tipo,
-        "projections": {rol: [{"queryRef": r, **({"active": True} if rol in ("Category", "Rows") else {})} for r in lista]
-                        for rol, lista in roles.items()},
-        "prototypeQuery": query,
-        "drillFilterOtherVisuals": True,
-    }
-    vc = {}
+    single = {"visualType": tipo, "drillFilterOtherVisuals": True}
+    if roles:
+        single["projections"] = {rol: [{"queryRef": r, **({"active": True} if rol in ("Category", "Rows") else {})}
+                                       for r in lista] for rol, lista in roles.items()}
+        single["prototypeQuery"] = query
+    vc = dict(contenedor or {})
     if titulo:
         vc["title"] = [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": literal(titulo)}}]
     if vc:
@@ -210,13 +217,26 @@ def visual(tipo, x, y, w, h, roles, titulo=None, orden=None, z=0, extra_objects=
     return {"x": x, "y": y, "z": z, "width": w, "height": h, "config": json.dumps(config, ensure_ascii=False), "filters": "[]"}
 
 
-def texto(x, y, w, h, contenido, tamano=20, z=0):
-    config = {
-        "name": uuid.uuid4().hex[:20],
-        "layouts": [{"id": 0, "position": {"x": x, "y": y, "z": z, "width": w, "height": h}}],
-        "singleVisual": {"visualType": "textbox", "drillFilterOtherVisuals": True, "objects": {"general": [{"properties": {
-            "paragraphs": [{"textRuns": [{"value": contenido, "textStyle": {"fontWeight": "bold", "fontSize": f"{tamano}pt"}}]}]}}]}},
-    }
+def texto(x, y, w, h, contenido, tamano=20, z=0, subtitulo=None, fondo=None):
+    parrafos = [{"textRuns": [{"value": contenido, "textStyle": {"fontWeight": "bold", "fontSize": f"{tamano}pt",
+                                                                  "color": "#FFFFFF"}}]}]
+    if subtitulo:
+        parrafos.append({"textRuns": [{"value": subtitulo, "textStyle": {"fontSize": "10pt", "color": "#9FB0BF"}}]})
+    single = {"visualType": "textbox", "drillFilterOtherVisuals": True,
+              "objects": {"general": [{"properties": {"paragraphs": parrafos}}]}}
+    if fondo:
+        verdadero, falso = {"expr": {"Literal": {"Value": "true"}}}, {"expr": {"Literal": {"Value": "false"}}}
+        single["vcObjects"] = {
+            "background": [{"properties": {"show": verdadero,
+                                           "color": {"solid": {"color": {"expr": {"Literal": {"Value": f"'{fondo}'"}}}}},
+                                           "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
+            "border": [{"properties": {"show": falso}}],
+            "dropShadow": [{"properties": {"show": falso}}],
+            "padding": [{"properties": {"top": {"expr": {"Literal": {"Value": "14D"}}},
+                                        "left": {"expr": {"Literal": {"Value": "24D"}}}}}],
+        }
+    config = {"name": uuid.uuid4().hex[:20], "layouts": [{"id": 0, "position": {"x": x, "y": y, "z": z, "width": w, "height": h}}],
+              "singleVisual": single}
     return {"x": x, "y": y, "z": z, "width": w, "height": h, "config": json.dumps(config, ensure_ascii=False), "filters": "[]"}
 
 
@@ -229,15 +249,34 @@ def L(valor):
     return {"expr": {"Literal": {"Value": valor}}}
 
 
-VERDE = "'#0F6B57'"
+def color(hexa):
+    return {"solid": {"color": L(f"'{hexa}'")}}
+
+
+# Paleta semántica (coincide con el tema tema_cartera_riesgo.json)
+VERDE, AMBAR, NARANJA, ROJO, AZUL = "#2BD9A4", "#F2B84B", "#F0874B", "#E5484D", "#5AA9E6"
+FONDO_CABECERA = "#102231"
+
 SEGMENTADOR = {"data": [{"properties": {"mode": L("'Dropdown'")}}], "header": [{"properties": {"show": L("false")}}]}
-TARJETA_MONEDA = {"labels": [{"properties": {"labelDisplayUnits": L("1D"), "labelPrecision": L("0L")}}]}
-COLOR = {"dataPoint": [{"properties": {"fill": {"solid": {"color": L(VERDE)}}}}]}
-SIN_TITULOS_EJES = {"categoryAxis": [{"properties": {"showAxisTitle": L("false")}}],
-                    "valueAxis": [{"properties": {"showAxisTitle": L("false")}}]}
+
+
+def tarjeta(valor_color="#FFFFFF", moneda=False):
+    props = {"color": color(valor_color)}
+    if moneda:
+        props.update({"labelDisplayUnits": L("1D"), "labelPrecision": L("0L")})
+    return {"labels": [{"properties": props}]}
+
+
+def relleno(hexa):
+    return {"dataPoint": [{"properties": {"fill": color(hexa)}}]}
+
+
 EJE_FECHA = {"categoryAxis": [{"properties": {"axisType": L("'Scalar'"), "showAxisTitle": L("false")}}],
              "valueAxis": [{"properties": {"showAxisTitle": L("false")}}]}
+SIN_TITULOS = {"categoryAxis": [{"properties": {"showAxisTitle": L("false")}}],
+               "valueAxis": [{"properties": {"showAxisTitle": L("false")}}]}
 ETIQUETAS = {"labels": [{"properties": {"show": L("true")}}]}
+MARCADORES = {"lineStyles": [{"properties": {"showMarker": L("true"), "strokeWidth": L("3D")}}]}
 
 
 def combinar(*partes):
@@ -247,54 +286,79 @@ def combinar(*partes):
     return salida
 
 
-p1 = pagina("Resumen", "Resumen ejecutivo", [
-    texto(24, 12, 900, 48, "Cartera y morosidad · corte 30/09/2026", 20),
-    visual("slicer", 24, 64, 296, 72, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR),
-    visual("slicer", 336, 64, 296, 72, {"Values": ["fEstado.canal"]}, "Canal", extra_objects=SEGMENTADOR),
-    visual("slicer", 648, 64, 296, 72, {"Values": ["dAgencia.region"]}, "Región", extra_objects=SEGMENTADOR),
-    visual("card", 24, 150, 296, 105, {"Values": ["_Medidas.Saldo Vigente"]}, extra_objects=TARJETA_MONEDA),
-    visual("card", 336, 150, 296, 105, {"Values": ["_Medidas.% Mora 30"]}),
-    visual("card", 648, 150, 296, 105, {"Values": ["_Medidas.% Mora 90"]}),
-    visual("card", 960, 150, 296, 105, {"Values": ["_Medidas.Saldo Castigado"]}, extra_objects=TARJETA_MONEDA),
-    visual("lineChart", 24, 270, 616, 430, {"Category": ["fCierre.fecha_cierre"], "Y": ["_Medidas.% Mora 30 Mes"]},
-           "Ratio de mora > 30 días por mes", extra_objects=combinar(EJE_FECHA, COLOR)),
-    visual("clusteredBarChart", 656, 270, 600, 200, {"Category": ["fEstado.producto"], "Y": ["_Medidas.% Mora 30"]},
+def cabecera(titulo, subtitulo):
+    """Banda superior con título, subtítulo y navegación entre páginas."""
+    return [
+        texto(0, 0, 1280, 76, titulo, 18, subtitulo=subtitulo, fondo=FONDO_CABECERA),
+        visual("pageNavigator", 820, 18, 440, 40, {}, z=1000, contenedor={
+            "background": [{"properties": {"show": L("false")}}], "border": [{"properties": {"show": L("false")}}],
+            "dropShadow": [{"properties": {"show": L("false")}}]}),
+    ]
+
+
+p1 = pagina("Resumen", "Resumen ejecutivo", cabecera(
+    "Cartera y morosidad", "Resumen ejecutivo · corte 30/09/2026 · datos sintéticos") + [
+    visual("slicer", 24, 92, 296, 64, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR),
+    visual("slicer", 336, 92, 296, 64, {"Values": ["fEstado.canal"]}, "Canal", extra_objects=SEGMENTADOR),
+    visual("slicer", 648, 92, 296, 64, {"Values": ["dAgencia.region"]}, "Región", extra_objects=SEGMENTADOR),
+    visual("card", 960, 92, 296, 64, {"Values": ["_Medidas.Créditos Vigentes"]}, extra_objects=tarjeta()),
+    visual("card", 24, 172, 296, 96, {"Values": ["_Medidas.Saldo Vigente"]}, extra_objects=tarjeta(moneda=True)),
+    visual("card", 336, 172, 296, 96, {"Values": ["_Medidas.% Mora 30"]}, extra_objects=tarjeta(AMBAR)),
+    visual("card", 648, 172, 296, 96, {"Values": ["_Medidas.Var. Mora 30 vs Mes Anterior"]}, extra_objects=tarjeta(NARANJA)),
+    visual("card", 960, 172, 296, 96, {"Values": ["_Medidas.Saldo Castigado"]}, extra_objects=tarjeta(ROJO, moneda=True)),
+    visual("lineChart", 24, 284, 616, 420, {"Category": ["fCierre.fecha_cierre"], "Y": ["_Medidas.% Mora 30 Mes"]},
+           "Ratio de mora > 30 días por mes", extra_objects=combinar(EJE_FECHA, relleno(AMBAR), MARCADORES)),
+    visual("clusteredBarChart", 656, 284, 600, 196, {"Category": ["fEstado.producto"], "Y": ["_Medidas.% Mora 30"]},
            "Mora > 30 días por producto", orden=("_Medidas.% Mora 30", 2),
-           extra_objects=combinar(SIN_TITULOS_EJES, COLOR, ETIQUETAS)),
-    visual("clusteredColumnChart", 656, 485, 600, 215, {"Category": ["fCierre.fecha_cierre"], "Y": ["_Medidas.Saldo Mes"]},
-           "Saldo de capital por mes", extra_objects=combinar(EJE_FECHA, COLOR)),
+           extra_objects=combinar(SIN_TITULOS, relleno(AMBAR), ETIQUETAS)),
+    visual("clusteredColumnChart", 656, 496, 600, 208, {"Category": ["fCierre.fecha_cierre"], "Y": ["_Medidas.Saldo Mes"]},
+           "Saldo de capital por mes", extra_objects=combinar(EJE_FECHA, relleno(AZUL))),
 ])
 
-p2 = pagina("Agencias", "Agencias", [
-    texto(24, 12, 900, 48, "Mora por agencia y tramo de atraso", 20),
-    visual("clusteredBarChart", 24, 70, 560, 630, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.% Mora 30"]},
+p2 = pagina("Agencias", "Agencias", cabecera(
+    "Riesgo por agencia", "Mora y composición del saldo por tramo de atraso · corte 30/09/2026") + [
+    visual("clusteredBarChart", 24, 92, 520, 612, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.% Mora 30"]},
            "Mora > 30 días por agencia", orden=("_Medidas.% Mora 30", 2),
-           extra_objects=combinar(SIN_TITULOS_EJES, COLOR, ETIQUETAS)),
-    visual("pivotTable", 600, 70, 656, 630,
+           extra_objects=combinar(SIN_TITULOS, relleno(AMBAR), ETIQUETAS)),
+    visual("hundredPercentStackedBarChart", 560, 92, 696, 300,
+           {"Category": ["dAgencia.nombre_agencia"], "Series": ["fEstado.tramo_mora"], "Y": ["_Medidas.Saldo Vigente"]},
+           "Composición del saldo vigente por tramo de mora", extra_objects=SIN_TITULOS),
+    visual("pivotTable", 560, 408, 696, 296,
            {"Rows": ["dAgencia.nombre_agencia"], "Columns": ["fEstado.tramo_mora"], "Values": ["_Medidas.Saldo Vigente"]},
-           "Saldo vigente por agencia y tramo de mora"),
+           "Saldo vigente por agencia y tramo (S/)"),
 ])
 
-p3 = pagina("Cobranza", "Gestión de cobranza", [
-    texto(24, 12, 1100, 48, "Lista de gestión: créditos con 1 a 60 días de atraso", 20),
-    visual("slicer", 24, 64, 400, 72, {"Values": ["dAgencia.nombre_agencia"]}, "Agencia", extra_objects=SEGMENTADOR),
-    visual("card", 440, 64, 320, 72, {"Values": ["_Medidas.Monto Vencido 1-60"]}, extra_objects=TARJETA_MONEDA),
-    visual("tableEx", 24, 150, 1232, 550,
-           {"Values": ["fEstado.credito_id", "fEstado.cliente_id", "dAgencia.nombre_agencia", "fEstado.producto",
+p3 = pagina("Cobranza", "Gestión de cobranza", cabecera(
+    "Gestión de cobranza", "Créditos con 1 a 60 días de atraso, priorizados por monto vencido") + [
+    visual("slicer", 24, 92, 296, 64, {"Values": ["dAgencia.nombre_agencia"]}, "Agencia", extra_objects=SEGMENTADOR),
+    visual("slicer", 336, 92, 296, 64, {"Values": ["fEstado.producto"]}, "Producto", extra_objects=SEGMENTADOR),
+    visual("card", 648, 92, 296, 64, {"Values": ["_Medidas.Monto Vencido 1-60"]}, extra_objects=tarjeta(AMBAR, moneda=True)),
+    visual("card", 960, 92, 296, 64, {"Values": ["_Medidas.Créditos 1-60"]}, extra_objects=tarjeta()),
+    visual("tableEx", 24, 172, 820, 532,
+           {"Values": ["fEstado.credito_id", "dAgencia.nombre_agencia", "fEstado.producto",
                        "fEstado.dias_atraso", "fEstado.cuotas_vencidas", "_Medidas.Monto Vencido 1-60"]},
-           "Priorizar por monto vencido (solo aparecen créditos con 1 a 60 días)",
-           orden=("_Medidas.Monto Vencido 1-60", 2)),
+           "Lista de gestión priorizada", orden=("_Medidas.Monto Vencido 1-60", 2)),
+    visual("clusteredBarChart", 860, 172, 396, 260, {"Category": ["fEstado.producto"], "Y": ["_Medidas.Monto Vencido 1-60"]},
+           "Monto vencido 1-60 por producto", orden=("_Medidas.Monto Vencido 1-60", 2),
+           extra_objects=combinar(SIN_TITULOS, relleno(AZUL), ETIQUETAS)),
+    visual("clusteredBarChart", 860, 448, 396, 256, {"Category": ["dAgencia.nombre_agencia"], "Y": ["_Medidas.Créditos 1-60"]},
+           "Créditos por gestionar por agencia", orden=("_Medidas.Créditos 1-60", 2),
+           extra_objects=combinar(SIN_TITULOS, relleno(VERDE), ETIQUETAS)),
 ])
 
 # Tema base: Power BI Desktop exige uno (se copia desde la instalación local de Power BI)
 TEMA = "CY24SU10"
+TEMA_PROPIO = "CarteraRiesgo.json"   # tema de diseño propio: powerbi/tema_cartera_riesgo.json
 reporte = {
-    "config": json.dumps({"version": "5.65", "themeCollection": {"baseTheme": {"name": TEMA, "version": "5.59", "type": 2}},
+    "config": json.dumps({"version": "5.65", "themeCollection": {"baseTheme": {"name": TEMA, "version": "5.59", "type": 2},
+                                                               "customTheme": {"name": TEMA_PROPIO, "version": "5.59", "type": 1}},
                           "activeSectionIndex": 0, "defaultDrillFilterOtherVisuals": True,
                           "linguisticSchemaSyncVersion": 0, "objects": {}}),
     "layoutOptimization": 0,
     "resourcePackages": [{"resourcePackage": {"name": "SharedResources", "type": 2, "disabled": False,
-                                              "items": [{"type": 202, "path": f"BaseThemes/{TEMA}.json", "name": TEMA}]}}],
+                                              "items": [{"type": 202, "path": f"BaseThemes/{TEMA}.json", "name": TEMA}]}},
+                         {"resourcePackage": {"name": "RegisteredResources", "type": 1, "disabled": False,
+                                              "items": [{"type": 202, "path": TEMA_PROPIO, "name": TEMA_PROPIO}]}}],
     "sections": [p1, p2, p3],
     "filters": "[]",
 }
@@ -326,5 +390,8 @@ if tema_origen.exists():
     (tema_dir / f"{TEMA}.json").write_bytes(tema_origen.read_bytes())
 elif not (tema_dir / f"{TEMA}.json").exists():
     raise FileNotFoundError(f"No se encontró el tema base {TEMA}: instala Power BI Desktop o copia el archivo a {tema_dir}")
+registrados = reporte_dir / "StaticResources" / "RegisteredResources"
+registrados.mkdir(parents=True, exist_ok=True)
+(registrados / TEMA_PROPIO).write_bytes((RAIZ / "tema_cartera_riesgo.json").read_bytes())
 (RAIZ / ".gitignore").write_text("**/.pbi/localSettings.json\n**/.pbi/cache.abf\n", encoding="utf-8")
 print(f"Proyecto generado en {RAIZ / (NOMBRE + '.pbip')}")

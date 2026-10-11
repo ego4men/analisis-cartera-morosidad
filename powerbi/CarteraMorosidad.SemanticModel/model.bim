@@ -368,6 +368,18 @@
             "expression": "VAR actual = [% Mora 30 Mes]\nVAR anterior = CALCULATE ( [% Mora 30 Mes], DATEADD ( dCalendario[Fecha], -1, MONTH ) )\nRETURN IF ( NOT ISBLANK ( anterior ), actual - anterior )",
             "formatString": "+0.00%;-0.00%;0.00%",
             "displayFolder": "Evolución"
+          },
+          {
+            "name": "Var. Mora 30 vs Mes Anterior",
+            "expression": "VAR ultimo = MAX ( fCierre[fecha_cierre] )\nVAR previo = EOMONTH ( ultimo, -1 )\nRETURN CALCULATE ( [% Mora 30 Mes], fCierre[fecha_cierre] = ultimo )\n     - CALCULATE ( [% Mora 30 Mes], fCierre[fecha_cierre] = previo )",
+            "formatString": "+0.00%;-0.00%;0.00%",
+            "displayFolder": "Evolución"
+          },
+          {
+            "name": "Créditos 1-60",
+            "expression": "CALCULATE ( COUNTROWS ( fEstado ), fEstado[dias_atraso] >= 1, fEstado[dias_atraso] <= 60 )",
+            "formatString": "#,0",
+            "displayFolder": "Cobranza"
           }
         ]
       }
